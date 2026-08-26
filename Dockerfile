@@ -1,11 +1,8 @@
-FROM golang:1.26.3-trixie
+FROM debian:trixie AS build
 
 ARG TARGETARCH
 ARG ZIG_VERSION=0.15.2
 ARG GHOSTTY_COMMIT=d4ac93a0395d321b043ee0116dc8a1a384f0fb83
-
-LABEL org.opencontainers.image.source=https://github.com/jumpserver-dev/libghostty-vt
-LABEL org.opencontainers.image.description="Prebuilt libghostty-vt for JumpServer"
 
 RUN set -ex \
     && case "${TARGETARCH}" in \
@@ -14,7 +11,7 @@ RUN set -ex \
         *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
     esac \
     && apt-get update \
-    && apt-get install -y --no-install-recommends pkg-config xz-utils \
+    && apt-get install -y --no-install-recommends build-essential ca-certificates pkg-config wget xz-utils \
     && wget -O /tmp/zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}.tar.xz" \
     && tar -xf /tmp/zig.tar.xz -C /opt \
     && mv "/opt/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}" /opt/zig \
@@ -25,5 +22,12 @@ RUN set -ex \
     && rm -rf /opt/zig /tmp/zig.tar.xz /tmp/ghostty.tar.gz "/tmp/ghostty-${GHOSTTY_COMMIT}" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+FROM debian:trixie
+
+LABEL org.opencontainers.image.source=https://github.com/jumpserver-dev/libghostty-vt
+LABEL org.opencontainers.image.description="Prebuilt libghostty-vt for JumpServer"
+
+COPY --from=build /opt/libghostty-vt /opt/libghostty-vt
 
 ENV PKG_CONFIG_PATH=/opt/libghostty-vt/share/pkgconfig
