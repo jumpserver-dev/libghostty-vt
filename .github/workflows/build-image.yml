@@ -1,20 +1,35 @@
 name: Build and Push Image
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - Dockerfile
-      - .github/workflows/build-image.yml
   workflow_dispatch:
+    inputs:
+      ZIG_VERSION:
+        description: Zig version
+        required: true
+        type: string
+        default: 0.15.2
+      GHOSTTY_COMMIT:
+        description: Ghostty commit ID
+        required: true
+        type: string
+        default: d4ac93a0395d321b043ee0116dc8a1a384f0fb83
+      PLATFORMS:
+        description: Target platforms
+        required: true
+        type: choice
+        options:
+          - linux/amd64,linux/arm64
+          - linux/amd64
+          - linux/arm64
+        default: linux/amd64,linux/arm64
 
 permissions:
   contents: read
+  packages: write
 
 env:
-  IMAGE_NAME: jumpserver/libghostty-vt
-  IMAGE_TAG: ghostty-d4ac93a0395d-zig-0.15.2
+  DOCKERHUB_IMAGE: jumpserver/libghostty-vt
+  GHCR_IMAGE: ghcr.io/jumpserver-dev/libghostty-vt
 
 jobs:
   build-and-push:
@@ -30,17 +45,41 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to DockerHub
+      - name: Prepare image tag
+        id: meta
+        env:
+          GHOSTTY_COMMIT: ${{ inputs.GHOSTTY_COMMIT }}
+          ZIG_VERSION: ${{ inputs.ZIG_VERSION }}
+        run: |
+          set -euo pipefail
+          [[ "${GHOSTTY_COMMIT}" =~ ^[0-9a-fA-F]{40}$ ]]
+          [[ "${ZIG_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          short_commit="${GHOSTTY_COMMIT:0:12}"
+          echo "image_tag=ghostty-${short_commit,,}-zig-${ZIG_VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ inputs.PLATFORMS }}
           push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          build-args: |
+            ZIG_VERSION=${{ inputs.ZIG_VERSION }}
+            GHOSTTY_COMMIT=${{ inputs.GHOSTTY_COMMIT }}
+          tags: |
+            ${{ env.DOCKERHUB_IMAGE }}:${{ steps.meta.outputs.image_tag }}
+            ${{ env.GHCR_IMAGE }}:${{ steps.meta.outputs.image_tag }}
