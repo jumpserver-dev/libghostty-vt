@@ -28,7 +28,6 @@ permissions:
   packages: write
 
 env:
-  DOCKERHUB_IMAGE: jumpserver/libghostty-vt
   GHCR_IMAGE: ghcr.io/jumpserver-dev/libghostty-vt
 
 jobs:
@@ -57,12 +56,6 @@ jobs:
           short_commit="${GHOSTTY_COMMIT:0:12}"
           echo "image_tag=ghostty-${short_commit,,}-zig-${ZIG_VERSION}" >> "${GITHUB_OUTPUT}"
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -80,6 +73,4 @@ jobs:
           build-args: |
             ZIG_VERSION=${{ inputs.ZIG_VERSION }}
             GHOSTTY_COMMIT=${{ inputs.GHOSTTY_COMMIT }}
-          tags: |
-            ${{ env.DOCKERHUB_IMAGE }}:${{ steps.meta.outputs.image_tag }}
-            ${{ env.GHCR_IMAGE }}:${{ steps.meta.outputs.image_tag }}
+          tags: ${{ env.GHCR_IMAGE }}:${{ steps.meta.outputs.image_tag }}
