@@ -18,7 +18,7 @@ RUN set -ex \
     && wget -O /tmp/ghostty.tar.gz "https://github.com/ghostty-org/ghostty/archive/${GHOSTTY_COMMIT}.tar.gz" \
     && tar -xf /tmp/ghostty.tar.gz -C /tmp \
     && cd "/tmp/ghostty-${GHOSTTY_COMMIT}" \
-    && /opt/zig/zig build -Demit-lib-vt -Doptimize=ReleaseFast --prefix /opt/libghostty-vt \
+    && /opt/zig/zig build -Demit-lib-vt -Doptimize=ReleaseFast -Dcpu=baseline --prefix /opt/libghostty-vt \
     && rm -rf /opt/zig /tmp/zig.tar.xz /tmp/ghostty.tar.gz "/tmp/ghostty-${GHOSTTY_COMMIT}" \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
